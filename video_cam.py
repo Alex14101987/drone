@@ -303,6 +303,7 @@ def video_write(save_dir):
                     except OSError as e:
                         print(f"Не удалось удалить директорию {dir_path}: {e}")
 
+
 if __name__ == '__main__':
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
