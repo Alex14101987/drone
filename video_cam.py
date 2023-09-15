@@ -16,6 +16,8 @@ import time
 from mpu6050 import mpu6050
 from math import atan2, sqrt, pi
 
+
+save_dir = 'videos'
 WIDTH = 640
 HEIGHT = 480
 # WIDTH = 1920
@@ -38,6 +40,7 @@ class Video():
         self.cap.set(cv2.CAP_PROP_FOURCC, FOURCC)
         # self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, AUTO_EXPOSURE)
         # self.cap.set(cv2.CAP_PROP_EXPOSURE, EXPOSURE)
+        self.buffer = ()
         self.frame = None
         self.save_dir = save_dir
         self.count = 0
@@ -90,7 +93,7 @@ class Video():
         while True:
             _, frame = self.cap.read()
             self.frame = frame
-            # cv2.putText(frame, str(self.count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(frame, str(self.count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             self.metadata = {
                 'frame_id': self.count,
                 'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
@@ -112,7 +115,7 @@ class Video():
                                 'gyro_y_P': self.gyro_y_P,
                                 'gyro_z_P': self.gyro_z_P,
                                 'mag_x_P': self.mag_x_P,
-                                'mag_x_P': self.mag_x_P,
+                                'mag_y_P': self.mag_y_P,
                                 'mag_z_P': self.mag_z_P,
                                 })
             self.metadata.update({
@@ -127,14 +130,15 @@ class Video():
                                   'gyro_y_IMU': self.gyro_y_IMU,
                                   'gyro_z_IMU': self.gyro_z_IMU
                                 })
+            self.buffer = (self.frame, self.metadata)
             self.count += 1
             # print(self.metadata_gps)
             # print(self.count)
 
     def run_IMU(self):
         sensor = mpu6050(0x68, 5)
-        check_mean = 16
-        mean_lst_roll, mean_lst_pitch = [], []
+        # check_mean = 16
+        # mean_lst_roll, mean_lst_pitch = [], []
         while True:
             accel = sensor.get_accel_data(g=True)
             gyro = sensor.get_gyro_data()
@@ -237,8 +241,9 @@ def video_write(save_dir):
     while True:
         # если счетчик изменился, то дописывем фрейм и добавляем метаданные
         if cur_count < video.count:
-            metadata.append(video.metadata)
-            video_writer.write(video.frame)
+            buffer = video.buffer.copy()
+            metadata.append(buffer[1])
+            video_writer.write(buffer[0])
             cur_count = video.count
             frame_count += 1
 
@@ -290,8 +295,8 @@ def video_write(save_dir):
                             oldest_file_ctime = current_file_ctime
                 os.remove(os.path.join(save_dir, oldest_file))
 
+
 if __name__ == '__main__':
-    save_dir = 'videos'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     video_write(save_dir)
