@@ -294,7 +294,14 @@ def video_write(save_dir):
                             oldest_file = fp
                             oldest_file_ctime = current_file_ctime
                 os.remove(os.path.join(save_dir, oldest_file))
-
+            for root, dirs, files in os.walk(save_dir, topdown=False):
+                for empty_dir in dirs:
+                    dir_path = os.path.join(root, empty_dir)
+                    try:
+                        os.rmdir(dir_path)
+                        print(f"Директория {dir_path} удалена.")
+                    except OSError as e:
+                        print(f"Не удалось удалить директорию {dir_path}: {e}")
 
 if __name__ == '__main__':
     if not os.path.exists(save_dir):
