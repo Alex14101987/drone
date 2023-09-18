@@ -45,48 +45,50 @@ class Video():
         self.save_dir = save_dir
         self.count = 0
         self.metadata = {}
-        self.roll = None
-        self.pitch = None
-        self.yaw = 0
-        self.roll_P = None
-        self.pitch_P = None
-        self.yaw = None
-        self.gyro_x = None
-        self.gyro_y = None
-        self.gyro_z = None
-        self.heading = None
-        self.groundspeed = None
-        self.latitude = None
-        self.longitude = None
-        self.altitude = None
-        self.acc_x = None
-        self.acc_y = None
-        self.acc_z = None
-        self.gyro_x_P = None
-        self.gyro_y_P = None
-        self.gyro_z_P = None
-        self.mag_x_P = None
-        self.mag_y_P = None
-        self.mag_z_P = None
-        self.acc_x_IMU = None
-        self.acc_y_IMU = None
-        self.acc_z_IMU = None
-        self.roll_P_G = None
-        self.pitch_P_G = None
-        self.yaw_P_G = None
-        self.gyro_x_IMU = None
-        self.gyro_y_IMU = None
-        self.gyro_z_IMU = None
+        # self.roll = None
+        # self.pitch = None
+        # self.yaw = 0
+        # self.roll_P = None
+        # self.pitch_P = None
+        # self.yaw = None
+        # self.gyro_x = None
+        # self.gyro_y = None
+        # self.gyro_z = None
+        # self.heading = None
+        # self.groundspeed = None
+        # self.latitude = None
+        # self.longitude = None
+        # self.altitude = None
+        # self.acc_x = None
+        # self.acc_y = None
+        # self.acc_z = None
+        # self.gyro_x_P = None
+        # self.gyro_y_P = None
+        # self.gyro_z_P = None
+        # self.mag_x_P = None
+        # self.mag_y_P = None
+        # self.mag_z_P = None
+        # # self.acc_x_IMU = None
+        # # self.acc_y_IMU = None
+        # # self.acc_z_IMU = None
+        # self.roll_P_G = None
+        # self.pitch_P_G = None
+        # self.yaw_P_G = None
+        # self.gyro_x_IMU = None
+        # self.gyro_y_IMU = None
+        # self.gyro_z_IMU = None
+        self.IMU_data = []
+        self.PixHawk_data = []
 
     def start(self):
         try:
             Thread(target=self.run_cam, daemon=True).start()
         except Exception as e:
             print(f'{type(e).__name__}: CAMERA_DATA NOT FOUND')
-        try:
-            Thread(target=self.run_IMU, daemon=True).start()
-        except Exception as e:
-            print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
+        # try:
+        #     Thread(target=self.run_IMU, daemon=True).start()
+        # except Exception as e:
+            # print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
         Thread(target=self.run_GPS, daemon=True).start()
 
     def run_cam(self):
@@ -98,37 +100,39 @@ class Video():
                 'frame_id': self.count,
                 'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
             self.metadata.update({
-                                'roll_P_G': self.roll_P_G,
-                                'pitch_P_G': self.pitch_P_G,
-                                'yaw_P_G': self.yaw_P_G,
-                                'heading': self.heading,
-                                'groundspeed': self.groundspeed,
-                                'latitude': self.latitude,
-                                'longitude': self.longitude,
-                                'altitude': self.altitude,
-                                'roll_P': self.roll_P,
-                                'pitch_P': self.pitch_P,
-                                'acc_x_P': self.acc_x,
-                                'acc_y_P': self.acc_y,
-                                'acc_z_P': self.acc_z,
-                                'gyro_x_P': self.gyro_x_P,
-                                'gyro_y_P': self.gyro_y_P,
-                                'gyro_z_P': self.gyro_z_P,
-                                'mag_x_P': self.mag_x_P,
-                                'mag_y_P': self.mag_y_P,
-                                'mag_z_P': self.mag_z_P,
+                                'PixHawk_data': self.PixHawk_data,
+                                # 'roll_P_G': self.roll_P_G,
+                                # 'pitch_P_G': self.pitch_P_G,
+                                # 'yaw_P_G': self.yaw_P_G,
+                                # 'heading': self.heading,
+                                # 'groundspeed': self.groundspeed,
+                                # 'latitude': self.latitude,
+                                # 'longitude': self.longitude,
+                                # 'altitude': self.altitude,
+                                # 'roll_P': self.roll_P,
+                                # 'pitch_P': self.pitch_P,
+                                # 'acc_x_P': self.acc_x,
+                                # 'acc_y_P': self.acc_y,
+                                # 'acc_z_P': self.acc_z,
+                                # 'gyro_x_P': self.gyro_x_P,
+                                # 'gyro_y_P': self.gyro_y_P,
+                                # 'gyro_z_P': self.gyro_z_P,
+                                # 'mag_x_P': self.mag_x_P,
+                                # 'mag_y_P': self.mag_y_P,
+                                # 'mag_z_P': self.mag_z_P,
                                 })
             self.metadata.update({
                 # roll и pitch поменяны местами так датчик закреплен боком
-                                  'roll_IMU': self.pitch,
-                                  'pitch_IMU': self.roll,
-                                  # 'yaw_IMU': self.yaw,
-                                  'acc_x_IMU': self.acc_x_IMU,
-                                  'acc_y_IMU': self.acc_y_IMU,
-                                  'acc_z_IMU': self.acc_z_IMU,
-                                  'gyro_x_IMU': self.gyro_x_IMU,
-                                  'gyro_y_IMU': self.gyro_y_IMU,
-                                  'gyro_z_IMU': self.gyro_z_IMU
+                                    'IMU_data': self.IMU_data
+                #                   'roll_IMU': self.pitch,
+                #                   'pitch_IMU': self.roll,
+                #                   # 'yaw_IMU': self.yaw,
+                #                   'acc_x_IMU': self.acc_x_IMU,
+                #                   'acc_y_IMU': self.acc_y_IMU,
+                #                   'acc_z_IMU': self.acc_z_IMU,
+                #                   'gyro_x_IMU': self.gyro_x_IMU,
+                #                   'gyro_y_IMU': self.gyro_y_IMU,
+                #                   'gyro_z_IMU': self.gyro_z_IMU
                                 })
             self.buffer = (self.frame, self.metadata)
             self.count += 1
@@ -140,77 +144,25 @@ class Video():
         # check_mean = 16
         # mean_lst_roll, mean_lst_pitch = [], []
         while True:
-            accel = sensor.get_accel_data(g=True)
-            gyro = sensor.get_gyro_data()
-
-            # print(math.sqrt(accel['x']**2+accel['y']**2+accel['z']**2))
-
-            roll_acc = math.degrees(math.atan2(math.sqrt(accel['x'] ** 2 + accel['z'] ** 2), accel['y']))
-            if accel['z'] > 0:
-                roll_acc *= -1
-            pitch_acc = math.degrees(math.atan2(-accel['x'], math.sqrt(accel['y'] ** 2 + accel['z'] ** 2)))
-            self.acc_x_IMU, self.acc_y_IMU, self.acc_z_IMU = round(accel['x']*1000), round(accel['y']*1000), round(accel['z']*1000)
-            self.gyro_x_IMU, self.gyro_y_IMU, self.gyro_z_IMU = gyro['x'], gyro['y'], gyro['z']
-            self.roll = ALPHA * (roll_acc + math.degrees(gyro['x']) * DT) + (1 - ALPHA) * roll_acc
-            self.pitch = ALPHA * (pitch_acc + math.degrees(gyro['y']) * DT) + (1 - ALPHA) * pitch_acc
-            # self.yaw += gyro['z']*DT
-
-            # mean_lst_roll.append(roll_acc)
-            # mean_lst_pitch.append(pitch_acc)
-            # if len(mean_lst_roll) >= check_mean:
-            #     self.roll = sum(mean_lst_roll)/check_mean
-            #     self.pitch = sum(mean_lst_pitch)/check_mean
-            #     mean_lst_roll, mean_lst_pitch = [], []
+            self.IMU_data = sensor.get_all_data()
 
     def run_GPS(self):
         # Подключение к устройству
         # master = mavutil.mavlink_connection('/dev/ttyACM0', baud=57600)
-
+        mavpackets = []
+        master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
         while True:
-            master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
-
-            try:
-                # извлечение значений гироскопа
-                msg_attitude = master.recv_match(type='ATTITUDE', blocking=True, timeout=0.001)
-                self.roll_P_G = msg_attitude.roll
-                self.pitch_P_G = msg_attitude.pitch
-                self.yaw_P_G = msg_attitude.yaw
-            except:
-                continue
-
-            try:
-                # извлечение значений компаса и скорости
-                msg_vfr_hud = master.recv_match(type='VFR_HUD', blocking=True)
-                self.heading = msg_vfr_hud.heading  # компас
-                self.groundspeed = msg_vfr_hud.groundspeed  # Скорость над землей
-            except:
-                continue
-
-            try:
-                # извлечение значений широты, долготы и высоты
-                msg_gps_raw_int = master.recv_match(type='GPS_RAW_INT', blocking=True)
-                self.latitude = msg_gps_raw_int.lat / 10000000.0  # Перевод широты из 1e-7 градусов в градусы
-                self.longitude = msg_gps_raw_int.lon / 10000000.0  # Перевод долготы из 1e-7 градусов в градусы
-                self.altitude = msg_gps_raw_int.alt / 1000.0  # Перевод высоты из миллиметров в метры
-            except:
-                continue
-
-            try:
-                # извлечение значений акселерометра
-                msg_scaled_imu = master.recv_match(type='RAW_IMU', blocking=True)
-                self.acc_x = msg_scaled_imu.xacc
-                self.acc_y = msg_scaled_imu.yacc
-                self.acc_z = msg_scaled_imu.zacc
-                self.gyro_x_P = msg_scaled_imu.xgyro
-                self.gyro_y_P = msg_scaled_imu.ygyro
-                self.gyro_z_P = msg_scaled_imu.zgyro
-                self.mag_x_P = msg_scaled_imu.xmag
-                self.mag_y_P = msg_scaled_imu.ymag
-                self.mag_z_P = msg_scaled_imu.zmag
-                self.roll_P = math.degrees(math.atan2(self.acc_y, math.sqrt(self.acc_x ** 2 + self.acc_z ** 2)))
-                self.pitch_P = -(math.degrees(math.atan2(-self.acc_x, math.sqrt(self.acc_y ** 2 + self.acc_z ** 2))))
-            except:
-                continue
+            match = master.recv_match()
+            if match is not None:
+                match = match.to_dict()
+                if match['mavpackettype'] == 'ATTITUDE':
+                    mavpackets = []
+                    mavpackets.append(match)
+                elif match['mavpackettype'] == 'BATTERY_STATUS':
+                    mavpackets.append(match)
+                    self.PixHawk_data = mavpackets
+                else:
+                    mavpackets.append(match)
 
 
 def video_write(save_dir):
@@ -241,7 +193,7 @@ def video_write(save_dir):
     while True:
         # если счетчик изменился, то дописывем фрейм и добавляем метаданные
         if cur_count < video.count:
-            buffer = video.buffer.copy()
+            buffer = video.buffer[:]
             metadata.append(buffer[1])
             video_writer.write(buffer[0])
             cur_count = video.count
@@ -249,7 +201,7 @@ def video_write(save_dir):
 
         # каждые 100 фреймов релиз видео, запись метаданных в json
         if frame_count >= 100:
-            print('RELEASE', count, 'FPS', video.cap.get(cv2.CAP_PROP_FPS), 'SIZE', (WIDTH, HEIGHT))
+            # print('RELEASE', count, 'FPS', video.cap.get(cv2.CAP_PROP_FPS), 'SIZE', (WIDTH, HEIGHT))
             with open(f'videos/{folder_count}/{count}.json', 'w') as f:
                 json.dump(metadata, f)
             video_writer.release()
@@ -301,7 +253,8 @@ def video_write(save_dir):
                         os.rmdir(dir_path)
                         print(f"Директория {dir_path} удалена.")
                     except OSError as e:
-                        print(f"Не удалось удалить директорию {dir_path}: {e}")
+                        # print(f"Не удалось удалить директорию {dir_path}: {e}")
+                        continue
 
 
 if __name__ == '__main__':
