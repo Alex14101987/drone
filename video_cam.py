@@ -12,9 +12,10 @@ from pymavlink import mavutil
 from PIL import Image, PngImagePlugin
 from io import BytesIO
 import smbus2
-import time
 from mpu6050 import mpu6050
 from math import atan2, sqrt, pi
+from mpu9250_jmdev.registers import *
+from mpu9250_jmdev.mpu_9250 import MPU9250
 
 
 save_dir = 'videos'
@@ -85,10 +86,10 @@ class Video():
             Thread(target=self.run_cam, daemon=True).start()
         except Exception as e:
             print(f'{type(e).__name__}: CAMERA_DATA NOT FOUND')
-        # try:
-        #     Thread(target=self.run_IMU, daemon=True).start()
-        # except Exception as e:
-            # print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
+        try:
+            Thread(target=self.run_IMU, daemon=True).start()
+        except Exception as e:
+            print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
         Thread(target=self.run_GPS, daemon=True).start()
 
     def run_cam(self):
@@ -140,11 +141,26 @@ class Video():
             # print(self.count)
 
     def run_IMU(self):
-        sensor = mpu6050(0x68, 5)
+        # sensor = mpu6050(0x68, 5)
         # check_mean = 16
         # mean_lst_roll, mean_lst_pitch = [], []
+        # while True:
+            # self.IMU_data = sensor.get_all_data()
+        mpu = MPU9250(
+            address_ak=AK8963_ADDRESS, 
+            address_mpu_master=MPU9050_ADDRESS_68, # Master has 0x68 Address
+            address_mpu_slave=MPU9050_ADDRESS_68, # Slave has 0x68 Address
+            bus=5, 
+            gfs=GFS_1000, 
+            afs=AFS_8G, 
+            mfs=AK8963_BIT_16, 
+            mode=AK8963_MODE_C100HZ)
+
+        mpu.configure() # Apply the settings to the registers.
+        
         while True:
-            self.IMU_data = sensor.get_all_data()
+            # print(mpu.getAllData())
+            self.IMU_data = mpu.getAllData()
 
     def run_GPS(self):
         # Подключение к устройству

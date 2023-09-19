@@ -53,14 +53,18 @@ master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
 #     # else:
 #     #     print('msg=None')
 #     #     break
-print(master)
-msg = master.recv_match(blocking=True)
-
+# print(master)
+# msg = master.recv_match(blocking=True)
+# print(master.recv_match().to_dict())
 # msg = master.recv_match()
+x = {}
 while True:
         
     try:
+        # x.update(master.recv_match().to_dict())
+        # print(x, end='\r')
         print(master.recv_match().to_dict())
+        # break
     except:
         pass
     time.sleep(0.1)
