@@ -96,7 +96,7 @@ class Video():
         while True:
             _, frame = self.cap.read()
             self.frame = frame
-            cv2.putText(frame, str(self.count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            # cv2.putText(frame, str(self.count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             self.metadata = {
                 'frame_id': self.count,
                 'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
@@ -141,11 +141,6 @@ class Video():
             # print(self.count)
 
     def run_IMU(self):
-        # sensor = mpu6050(0x68, 5)
-        # check_mean = 16
-        # mean_lst_roll, mean_lst_pitch = [], []
-        # while True:
-            # self.IMU_data = sensor.get_all_data()
         mpu = MPU9250(
             address_ak=AK8963_ADDRESS, 
             address_mpu_master=MPU9050_ADDRESS_68, # Master has 0x68 Address
@@ -160,7 +155,17 @@ class Video():
         
         while True:
             # print(mpu.getAllData())
-            self.IMU_data = mpu.getAllData()
+            imu_data = mpu.getAllData()
+            self.IMU_data = {
+                'timestamp_IMU': imu_data[0],
+                'acc_x_IMU': imu_data[1],
+                'acc_y_IMU': imu_data[2],
+                'acc_z_IMU': imu_data[3],
+                'gyro_x_IMU': imu_data[4],
+                'gyro_y_IMU': imu_data[5],
+                'gyro_z_IMU': imu_data[6],
+                'temp_IMU': imu_data[-2],
+                        }
 
     def run_GPS(self):
         # Подключение к устройству
@@ -195,55 +200,56 @@ def video_write(save_dir):
         max_folder = max(folders, key=lambda x: int(x))
         folder_count = int(max_folder) + 1
     os.makedirs(f'{save_dir}/{folder_count}')
-    # os.makedirs(f'{save_dir}/{folder_count}/frames/')
+    os.makedirs(f'{save_dir}/{folder_count}/frames/')
     count = 0
-    video_writer = cv2.VideoWriter(
-        f'videos/{folder_count}/{count}.avi',
-        cv2.VideoWriter.fourcc(*"FFV1"),
-        FPS,
-        (WIDTH, HEIGHT)
-    )
-    metadata = []
+    # video_writer = cv2.VideoWriter(
+    #     f'videos/{folder_count}/{count}.avi',
+    #     cv2.VideoWriter.fourcc(*"FFV1"),
+    #     FPS,
+    #     (WIDTH, HEIGHT)
+    # )
+    # metadata = []
     frame_count = 0
     cur_count = 0
     while True:
         # если счетчик изменился, то дописывем фрейм и добавляем метаданные
         if cur_count < video.count:
             buffer = video.buffer[:]
-            metadata.append(buffer[1])
-            video_writer.write(buffer[0])
+            # metadata.append(buffer[1])
+            # video_writer.write(buffer[0])
+
+            # запись фрейма с метаданными
+            im = Image.fromarray(buffer[0])
+            png_info = PngImagePlugin.PngInfo()
+            png_info.add_text('metadata', str(buffer[1]))
+            with BytesIO() as output:
+                im.save(output, "PNG", pnginfo=png_info)
+                binary_data = output.getvalue()
+            with open(f'{save_dir}/{folder_count}/frames/{buffer[1]["frame_id"]}.png', "wb") as file:
+                file.write(binary_data)
+
             cur_count = video.count
             frame_count += 1
 
         # каждые 100 фреймов релиз видео, запись метаданных в json
         if frame_count >= 100:
-            # print('RELEASE', count, 'FPS', video.cap.get(cv2.CAP_PROP_FPS), 'SIZE', (WIDTH, HEIGHT))
-            with open(f'videos/{folder_count}/{count}.json', 'w') as f:
-                json.dump(metadata, f)
-            video_writer.release()
+            # # print('RELEASE', count, 'FPS', video.cap.get(cv2.CAP_PROP_FPS), 'SIZE', (WIDTH, HEIGHT))
+            # with open(f'videos/{folder_count}/{count}.json', 'w') as f:
+            #     json.dump(metadata, f)
+            # video_writer.release()
             os.sync()
-
-            # # запись фрейма с метаданными
-            # im = Image.fromarray(video.frame)
-            # png_info = PngImagePlugin.PngInfo()
-            # png_info.add_text('metadata', str(video.metadata))
-            # with BytesIO() as output:
-            #     im.save(output, "PNG", pnginfo=png_info)
-            #     binary_data = output.getvalue()
-            # with open(f'{save_dir}/{folder_count}/frames/{count}.png', "wb") as file:
-            #     file.write(binary_data)
-
-            # затем обновление переменных
+        if frame_count >= 1000:
+            # # затем обновление переменных
             frame_count = 0
-            metadata = []
-            count += 1
-            video_writer = None
-            video_writer = cv2.VideoWriter(
-                f'videos/{folder_count}/{count}.avi',
-                cv2.VideoWriter.fourcc(*"FFV1"),
-                FPS,
-                (WIDTH, HEIGHT)
-            )
+            # metadata = []
+            # count += 1
+            # video_writer = None
+            # video_writer = cv2.VideoWriter(
+            #     f'videos/{folder_count}/{count}.avi',
+            #     cv2.VideoWriter.fourcc(*"FFV1"),
+            #     FPS,
+            #     (WIDTH, HEIGHT)
+            # )
 
             # проверка на максимальный размер папки, если больше 20 Гб, то начинают удаляться старые файлы
             total_size = 0
