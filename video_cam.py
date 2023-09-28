@@ -2,18 +2,13 @@
 # v4l2-ctl -d /dev/video6 --list-formats-ext
 
 import cv2
-import os, shutil
-import json
+import os
 import time
 from datetime import datetime
-import math
 from threading import Thread
 from pymavlink import mavutil
 from PIL import Image, PngImagePlugin
 from io import BytesIO
-import smbus2
-from mpu6050 import mpu6050
-from math import atan2, sqrt, pi
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 
@@ -46,38 +41,6 @@ class Video():
         self.save_dir = save_dir
         self.count = 0
         self.metadata = {}
-        # self.roll = None
-        # self.pitch = None
-        # self.yaw = 0
-        # self.roll_P = None
-        # self.pitch_P = None
-        # self.yaw = None
-        # self.gyro_x = None
-        # self.gyro_y = None
-        # self.gyro_z = None
-        # self.heading = None
-        # self.groundspeed = None
-        # self.latitude = None
-        # self.longitude = None
-        # self.altitude = None
-        # self.acc_x = None
-        # self.acc_y = None
-        # self.acc_z = None
-        # self.gyro_x_P = None
-        # self.gyro_y_P = None
-        # self.gyro_z_P = None
-        # self.mag_x_P = None
-        # self.mag_y_P = None
-        # self.mag_z_P = None
-        # # self.acc_x_IMU = None
-        # # self.acc_y_IMU = None
-        # # self.acc_z_IMU = None
-        # self.roll_P_G = None
-        # self.pitch_P_G = None
-        # self.yaw_P_G = None
-        # self.gyro_x_IMU = None
-        # self.gyro_y_IMU = None
-        # self.gyro_z_IMU = None
         self.IMU_data = []
         self.PixHawk_data = []
 
@@ -102,43 +65,12 @@ class Video():
                 'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
             self.metadata.update({
                                 'PixHawk_data': self.PixHawk_data,
-                                # 'roll_P_G': self.roll_P_G,
-                                # 'pitch_P_G': self.pitch_P_G,
-                                # 'yaw_P_G': self.yaw_P_G,
-                                # 'heading': self.heading,
-                                # 'groundspeed': self.groundspeed,
-                                # 'latitude': self.latitude,
-                                # 'longitude': self.longitude,
-                                # 'altitude': self.altitude,
-                                # 'roll_P': self.roll_P,
-                                # 'pitch_P': self.pitch_P,
-                                # 'acc_x_P': self.acc_x,
-                                # 'acc_y_P': self.acc_y,
-                                # 'acc_z_P': self.acc_z,
-                                # 'gyro_x_P': self.gyro_x_P,
-                                # 'gyro_y_P': self.gyro_y_P,
-                                # 'gyro_z_P': self.gyro_z_P,
-                                # 'mag_x_P': self.mag_x_P,
-                                # 'mag_y_P': self.mag_y_P,
-                                # 'mag_z_P': self.mag_z_P,
                                 })
             self.metadata.update({
-                # roll и pitch поменяны местами так датчик закреплен боком
                                     'IMU_data': self.IMU_data
-                #                   'roll_IMU': self.pitch,
-                #                   'pitch_IMU': self.roll,
-                #                   # 'yaw_IMU': self.yaw,
-                #                   'acc_x_IMU': self.acc_x_IMU,
-                #                   'acc_y_IMU': self.acc_y_IMU,
-                #                   'acc_z_IMU': self.acc_z_IMU,
-                #                   'gyro_x_IMU': self.gyro_x_IMU,
-                #                   'gyro_y_IMU': self.gyro_y_IMU,
-                #                   'gyro_z_IMU': self.gyro_z_IMU
-                                })
+                                 })
             self.buffer = (self.frame, self.metadata)
             self.count += 1
-            # print(self.metadata_gps)
-            # print(self.count)
 
     def run_IMU(self):
         mpu = MPU9250(
@@ -164,6 +96,9 @@ class Video():
                 'gyro_x_IMU': imu_data[4],
                 'gyro_y_IMU': imu_data[5],
                 'gyro_z_IMU': imu_data[6],
+                'mag_x_IMU': imu_data[7],
+                'mag_y_IMU': imu_data[8],
+                'mag_z_IMU': imu_data[9],
                 'temp_IMU': imu_data[-2],
                         }
 
@@ -189,7 +124,6 @@ class Video():
 def video_write(save_dir):
     video = Video(save_dir)
     video.start()
-    # folder_count = math.ceil(len(os.listdir(save_dir)))
     folders = [f for f in os.listdir(save_dir) if os.path.isdir(os.path.join(save_dir, f))]
     if not folders:
         folder_count = 0
@@ -201,23 +135,16 @@ def video_write(save_dir):
         folder_count = int(max_folder) + 1
     os.makedirs(f'{save_dir}/{folder_count}')
     os.makedirs(f'{save_dir}/{folder_count}/frames/')
-    count = 0
-    # video_writer = cv2.VideoWriter(
-    #     f'videos/{folder_count}/{count}.avi',
-    #     cv2.VideoWriter.fourcc(*"FFV1"),
-    #     FPS,
-    #     (WIDTH, HEIGHT)
-    # )
-    # metadata = []
+
     frame_count = 0
     cur_count = 0
+
     while True:
         # если счетчик изменился, то дописывем фрейм и добавляем метаданные
         if cur_count < video.count:
-            buffer = video.buffer[:]
-            # metadata.append(buffer[1])
-            # video_writer.write(buffer[0])
 
+            buffer = video.buffer[:]
+            
             # запись фрейма с метаданными
             im = Image.fromarray(buffer[0])
             png_info = PngImagePlugin.PngInfo()
@@ -231,26 +158,14 @@ def video_write(save_dir):
             cur_count = video.count
             frame_count += 1
 
-        # каждые 100 фреймов релиз видео, запись метаданных в json
+        # каждые 100 frame sync
         if frame_count >= 100:
-            # # print('RELEASE', count, 'FPS', video.cap.get(cv2.CAP_PROP_FPS), 'SIZE', (WIDTH, HEIGHT))
-            # with open(f'videos/{folder_count}/{count}.json', 'w') as f:
-            #     json.dump(metadata, f)
-            # video_writer.release()
             os.sync()
-        if frame_count >= 1000:
-            # # затем обновление переменных
-            frame_count = 0
-            # metadata = []
-            # count += 1
-            # video_writer = None
-            # video_writer = cv2.VideoWriter(
-            #     f'videos/{folder_count}/{count}.avi',
-            #     cv2.VideoWriter.fourcc(*"FFV1"),
-            #     FPS,
-            #     (WIDTH, HEIGHT)
-            # )
 
+        if frame_count >= 1000:
+            # затем обновление переменных
+            frame_count = 0
+            
             # проверка на максимальный размер папки, если больше 20 Гб, то начинают удаляться старые файлы
             total_size = 0
             for dirpath, dirnames, filenames in os.walk(save_dir):
