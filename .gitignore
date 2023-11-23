@@ -1,2 +1,6 @@
 # This is .gitignore
+.gitignore
+.idea/
+*.txt
+*.png
 *.bmp
