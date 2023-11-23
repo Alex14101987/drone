@@ -4,11 +4,14 @@ import os
 from datetime import datetime
 import json
 import numpy as np
+import ast
 
 
 def str_to_dict(string):
-    string = string.replace("'", '"')  # заменяем одинарные кавычки на двойные, чтобы они были совместимы с json
-    return json.loads(string)
+    # print(string, end='\r')
+    # string = string.replace("'", '"')  # заменяем одинарные кавычки на двойные, чтобы они были совместимы с json
+    return ast.literal_eval(string)
+    # return json.loads(string)
 
 
 
@@ -17,52 +20,29 @@ def check_timestamp_diff(folder_path):
     file_list = sorted(file_list, key=lambda x: os.path.getmtime(os.path.join(folder_path, x)), reverse=False)
     x = []
     y = []
-    size = []
     count = 0
     for i in range(len(file_list)-1):
-        file_path = os.path.join(folder_path, file_list[i])
-        im = Image.open(file_path)
-        metadata = im.info['metadata']
-        timestamp = str_to_dict(metadata)['timestamp']
-        timestamp = timestamp.strip("'")
-        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
-        file_path1 = os.path.join(folder_path, file_list[i+1])
-        im1 = Image.open(file_path1)
-        metadata1 = im1.info['metadata']
-        timestamp1 = str_to_dict(metadata1)['timestamp']
-        timestamp1 = timestamp1.strip("'")
-        timestamp1 = datetime.strptime(timestamp1, '%Y-%m-%d %H:%M:%S.%f')
-        # print(timestamp1 - timestamp)
+        timestamp = file_list[i][:19]
+        timestamp = datetime.fromtimestamp(int(timestamp)/ 1e9)
+
+        timestamp1 = file_list[i+1][:19]
+        timestamp1 = datetime.fromtimestamp(int(timestamp1)/ 1e9)
+
         x.append(count)
         y.append(timestamp1 - timestamp)
-        size.append(os.path.getsize(file_path))
         count += 1
     y = [td.total_seconds() for td in y]
-    return x, y, size
+    return x, y
 
 plt.rcParams['figure.figsize'] = [20, 20]
 fig, ax = plt.subplots()
 
-folder_path = "/home/user/Downloads/videos/frames"
-x, y, size = check_timestamp_diff(folder_path)
-z = []
-a = []
-for i in range(len(y)):
-    z.append(size[i]/1_000_000)
-# for i in range(len(z)):
-#     a.append(y[i]/z[i])
-ax.plot(x, z, c='b', label='размер: Мб', linewidth=0.5)
-ax.plot(x, y, c='r', label='время стало: сек.', linewidth=0.5)
-# ax.plot(x, a, c='y', label='coef', linewidth=5)
-# folder_path = "/home/user/Downloads/videos/10/frames"
-# x1, y1, _ = check_timestamp_diff(folder_path)
-# ax.plot(x1, y1, c='r', label='время было: сек.', linewidth=0.5)
-# ax.plot(x, y, c='b', label='время стало: сек.', linewidth=0.5)
-correlation_matrix = np.corrcoef(y, z)
-print(len(a))
-correlation = correlation_matrix[0, 1]
+folder_path = "/home/orangepi/videos/28/frames"
+x, y = check_timestamp_diff(folder_path)
+print(x, y)
 
-plt.title(f'Корреляция между значениями: {correlation}')
+ax.plot(x, y, c='r', label='время стало: сек.', linewidth=0.5)
+
 leg = plt.legend()
 plt.show()
 

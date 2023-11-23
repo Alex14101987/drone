@@ -1,11 +1,13 @@
 # mavproxy.py --master=/dev/ttyACM0 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/dev/null 1>&2 &
 # mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --streamrate=10 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/dev/null 1>&2 &
 # mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --out=udp:127.0.0.1:14550 --streamrate=10 --out=udp:127.0.0.1:14551 --daemon 2>~/logMavproxy.txt 1>&2 &
+# mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --streamrate=10 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/home/orangepi/logMavproxy.txt 1>/home/orangepi/logMavproxy1.txt &
 # v4l2-ctl -d /dev/video6 --list-formats-ext
 # chmod 666 /dev/i2c-5
 
 import cv2
-import os
+import shutil
+import os, os.path
 import time
 from datetime import datetime
 from threading import Thread
@@ -13,21 +15,30 @@ from pymavlink import mavutil
 from PIL import Image, PngImagePlugin
 from io import BytesIO
 from DFRobot_BMI160.python.raspberrypi.DFRobot_BMI160 import *
+import copy
+import subprocess
+
+
 
 save_dir = '/home/orangepi/videos'
 WIDTH = 640
 HEIGHT = 480
-# WIDTH = 1920
-# HEIGHT = 1080
-FPS = 30
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 60
 # FOURCC = cv2.VideoWriter_fourcc(*'MJPG')
+# FOURCC = cv2.VideoWriter_fourcc(*'YUYV')
+
 # AUTO_EXPOSURE = 1
 # EXPOSURE = 50
-FOURCC = cv2.VideoWriter_fourcc(*'YUYV')
+FOURCC = cv2.VideoWriter_fourcc(*'MJPG')
 
 class Video():
     def __init__(self, save_dir):
         self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            # cap.release()
+            self.cap = cv2.VideoCapture(1)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
         self.cap.set(cv2.CAP_PROP_FPS, FPS)
@@ -39,51 +50,55 @@ class Video():
         self.save_dir = save_dir
         self.count = 0
         self.metadata = {}
-        self.IMU_data = []
-        self.PixHawk_data = []
+        self.IMU_data = {}
+        self.PixHawk_data = {}
+        self.timestamp = None
 
     def start(self):
         try:
             Thread(target=self.run_cam, daemon=True).start()
         except Exception as e:
             print(f'{type(e).__name__}: CAMERA_DATA NOT FOUND')
-        try:
-            Thread(target=self.run_IMU, daemon=True).start()
-        except Exception as e:
-            print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
         # try:
-        #     Thread(target=self.check_folder_size, daemon=True).start()
-        # except:
-        #     print(f'can not empty folders')
-        Thread(target=self.run_GPS, daemon=True).start()
+        #     Thread(target=self.run_IMU, daemon=True).start()
+        # except Exception as e:
+        #     print(f'{type(e).__name__}: IMU_DATA NOT FOUND')
+        try:
+            Thread(target=self.run_GPS, daemon=True).start()
+        except Exception as e:
+            print(f'{type(e).__name__}: GPS_DATA NOT FOUND')
+        try:
+            Thread(target=self.delete_subfolders).start()
+        except Exception as e:
+            print(f'{type(e).__name__}: CHECK_FOLDER_SIZE CAN NOT WORK')
 
     def run_cam(self):
         while True:
             _, frame = self.cap.read()
             self.frame = frame
+            self.timestamp = time.time_ns()
             # cv2.putText(frame, str(self.count), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            self.metadata = {
-                'frame_id': self.count,
-                'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
+            # self.metadata = {
+            #     'frame_id': self.count,
+            #     'timestamp': datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}
             self.metadata.update({
                                 'PixHawk_data': self.PixHawk_data,
                                 })
             self.metadata.update({
                                     'IMU_data': self.IMU_data
                                  })
-            self.buffer = (self.frame, self.metadata)
+            self.buffer = (self.frame, self.metadata, self.timestamp)
             self.count += 1
 
     def run_IMU(self):
-
         bmi = DFRobot_BMI160_IIC(addr = BMI160_IIC_ADDR_SDO_H)
         while bmi.begin() != BMI160_OK:
             print("Initialization 6-axis sensor failed.")
             time.sleep(1)
         print("Initialization 6-axis sensor sucess.")
         while True:
-            # print(mpu.getAllData())
             data = bmi.get_sensor_data()
+            print('IMU_DATA============>', data)
             self.IMU_data = {
                 'acc_x_IMU': data['accel']['x']/16384.0,
                 'acc_y_IMU': data['accel']['y']/16384.0,
@@ -92,58 +107,63 @@ class Video():
                 'gyro_y_IMU': data['gyro']['y']*3.14/180.0,
                 'gyro_z_IMU': data['gyro']['z']*3.14/180.0,
                         }
-            
+
     def run_GPS(self):
         # Подключение к устройству
         # master = mavutil.mavlink_connection('/dev/ttyACM0', baud=57600)
-        mavpackets = []
+        mavpackets = {}
         master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
         while True:
             match = master.recv_match()
             if match is not None:
                 match = match.to_dict()
                 if match['mavpackettype'] == 'ATTITUDE':
-                    mavpackets = []
-                    mavpackets.append(match)
-                elif match['mavpackettype'] == 'BATTERY_STATUS':
-                    mavpackets.append(match)
                     self.PixHawk_data = mavpackets
+                    mavpackets = {}
+                    mavpackets.update({str(match['mavpackettype']): match})
+                # elif match['mavpackettype'] == 'BATTERY_STATUS':
+                #     mavpackets.append(match)
+                #     self.PixHawk_data = mavpackets
                 else:
-                    mavpackets.append(match)
+                    mavpackets.update({str(match['mavpackettype']): match})
 
-    def check_folder_size(self):
-        # проверка папки на размер и удаление всех пустых папок и файлов если превышает 15 Гб
-        def get_dir_size(save_dir):
-            total_size = 0
-            for dirpath, dirnames, filenames in os.walk(save_dir):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    total_size += os.path.getsize(fp)
-            return total_size
+    def delete_subfolders(self):
+        def get_size():
+            size = subprocess.check_output(['du','-sh', "/home/orangepi/videos"]).split()[0].decode('utf-8')
+            if 'G' in size:
+                size = int(size.replace('G', '')) * 1024**3
+            elif 'M' in size:
+                size = int(size.replace('M', '')) * 1024**2
+            elif 'K' in size:
+                size = int(size.replace('K', '')) * 1024
+            print(size/1024**3, 'GB')
+            return size
+        while get_size() > 20 * 1024**3:
+            subfolders = [f for f in os.listdir("/home/orangepi/videos") if os.path.isdir(os.path.join("/home/orangepi/videos", f))]
+            sorted_subfolders = sorted(subfolders, key=int)
+            # print(sorted_subfolders)
+            subfolder_path = os.path.join("/home/orangepi/videos", sorted_subfolders[0])
+            print(subfolder_path)
+            os.chmod(subfolder_path, 0o1777)
+            shutil.rmtree(subfolder_path)
+            print(f"Удалена папка: {subfolder_path}")
 
-        while get_dir_size(save_dir) > (15 * 1024 * 1024 * 1024):  # 15 GB
-            oldest_file = None
-            oldest_file_ctime = None
-            for dirpath, dirnames, filenames in os.walk(save_dir):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    current_file_ctime = os.path.getctime(fp)
-                    if oldest_file is None or current_file_ctime < oldest_file_ctime:
-                        oldest_file = fp
-                        oldest_file_ctime = current_file_ctime
-            if oldest_file is not None:
-                # print(f'Удален файл: {oldest_file}')
-                os.remove(oldest_file)
-        for root, dirs, files in os.walk(save_dir, topdown=False):
-            for empty_dir in dirs:
-                dir_path = os.path.join(root, empty_dir)
-                try:
-                    os.rmdir(dir_path)
-                    # print(f"Директория {dir_path} удалена.")
-                except OSError as e:
-                    # print(f"Не удалось удалить директорию {dir_path}: {e}")
-                    continue
-
+    def save_img(self, buffer: tuple, folder_count: int, cur_count: int):
+        # запись фрейма с метаданными
+        frame = buffer[0]
+        frame = cv2.resize(frame, (640, 360))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        im = Image.fromarray(frame)
+        png_info = PngImagePlugin.PngInfo()
+        png_info.add_text('metadata', str(buffer[1]))
+        with BytesIO() as output:
+            im.save(output, "PNG", pnginfo=png_info)
+            binary_data = output.getvalue()
+        with open(f'/home/orangepi/videos/{folder_count}/frames/{buffer[2]}.png', "wb") as file:
+            file.write(binary_data)
+        # print(self.cap.get(cv2.CAP_PROP_FPS))
+        # print('SAVE_IMG ==========>', folder_count, cur_count)
+        os.sync()
 
 def video_write(save_dir):
     video = Video(save_dir)
@@ -159,35 +179,23 @@ def video_write(save_dir):
                 folders.remove(i)
         max_folder = max(folders, key=lambda x: int(x))
         folder_count = int(max_folder) + 1
-    # os.makedirs(f'{save_dir}/{folder_count}')
-    os.makedirs(f'{save_dir}/{folder_count}/frames/')
-
-    # frame_count = 0
+    fpath = f'/home/orangepi/videos/{folder_count}/frames/'
+    os.makedirs(fpath)
+    # print('FOLDER=============>', fpath)
     cur_count = 0
-
     while True:
-        # если счетчик изменился, то дописывем фрейм и добавляем метаданные
         if cur_count < video.count:
-
             buffer = video.buffer[:]
-            
-            # запись фрейма с метаданными
-            im = Image.fromarray(buffer[0])
-            png_info = PngImagePlugin.PngInfo()
-            png_info.add_text('metadata', str(buffer[1]))
-            with BytesIO() as output:
-                im.save(output, "PNG", pnginfo=png_info)
-                binary_data = output.getvalue()
-            with open(f'{save_dir}/{folder_count}/frames/{buffer[1]["frame_id"]}.png', "wb") as file:
-                file.write(binary_data)
-            print(folder_count, buffer[1]["frame_id"])
+            # start_time = time.time()
+            if cur_count % 4 == 0:
+                x = copy.copy(buffer)
+                thread = Thread(target=video.save_img, args=(x, folder_count, copy.copy(cur_count)))
+                thread.start()
             cur_count = video.count
-            # frame_count += 1
-            os.sync()
-        # каждые 100 frame sync
-        # if frame_count >= 100:
-            
-        #     frame_count = 0
+
+            # end_time = time.time()
+            # elapsed_time = end_time - start_time
+            # print(f"Time elapsed for this loop iteration: {'{:.8f}'.format(elapsed_time)} seconds")
 
 if __name__ == '__main__':
     if not os.path.exists(save_dir):
