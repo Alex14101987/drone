@@ -5,8 +5,8 @@ from pymavlink import mavutil
 # # Подключение к устройству
 # master = mavutil.mavlink_connection('/dev/ttyS3', baud=115200)
 # master = mavutil.mavlink_connection('/dev/ttyUSB0', baud=57600)
-master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
-# master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=57600)
+# master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=115200)
+master = mavutil.mavlink_connection('udp:127.0.0.1:14551', baud=57600)
 
 # # # Отправка запроса
 # # master.mav.command_long_send(
@@ -49,7 +49,7 @@ while True:
 # #                 print(f"Longitude: {longitude:.6f} degrees")
 # #                 print(f"Altitude: {altitude:.2f} meters", '\n')
 # #         except:
-# #             continue    
+# #             continue
 # #     # time.sleep(0.5)
 # #     # else:
 # #     #     print('msg=None')

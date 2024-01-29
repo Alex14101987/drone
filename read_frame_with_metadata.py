@@ -15,3 +15,5 @@ print(newest_file)
 im = Image.open(newest_file+'.png')
 metadata = im.info['metadata']
 print(metadata)
+
+# im.show()

@@ -1,8 +1,8 @@
 # mavproxy.py --master=/dev/ttyACM0 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/dev/null 1>&2 &
 # mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --streamrate=10 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/dev/null 1>&2 &
-# mavproxy.py --baudrate=57600 --master=/dev/ttyS3 --streamrate=10 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/dev/null 1>&2 &
 # mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --out=udp:127.0.0.1:14550 --streamrate=10 --out=udp:127.0.0.1:14551 --daemon 2>~/logMavproxy.txt 1>&2 &
 # mavproxy.py --baudrate=115200 --master=/dev/ttyS3 --streamrate=10 --out=udp:127.0.0.1:14550 --out=udp:127.0.0.1:14551 --daemon 2>/home/orangepi/logMavproxy.txt 1>/home/orangepi/logMavproxy1.txt &
+# 2 выводит ошибки 1 стандартный вывод
 # v4l2-ctl -d /dev/video6 --list-formats-ext
 # chmod 666 /dev/i2c-5
 
@@ -18,17 +18,16 @@ from io import BytesIO
 # from DFRobot_BMI160.python.raspberrypi.DFRobot_BMI160 import *
 import copy
 import subprocess
-import socket, cv2, pickle, struct, time
-from check_cam1 import *
+
 
 
 
 save_dir = '/home/orangepi/videos'
-MAX_SIZE_GB = 50
-WIDTH = 640
-HEIGHT = 480
+save_dir = '/media/user/opi_root/home/orangepi/videos'
+# WIDTH = 640
+# HEIGHT = 480
 WIDTH = 1920
-HEIGHT = 1080
+HEIGHT = 1280
 FPS = 60
 # FOURCC = cv2.VideoWriter_fourcc(*'MJPG')
 # FOURCC = cv2.VideoWriter_fourcc(*'YUYV')
@@ -39,7 +38,7 @@ FOURCC = cv2.VideoWriter_fourcc(*'MJPG')
 
 class Video():
     def __init__(self, save_dir):
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(2)
         if not self.cap.isOpened():
             # cap.release()
             self.cap = cv2.VideoCapture(1)
@@ -75,11 +74,6 @@ class Video():
             Thread(target=self.delete_subfolders).start()
         except Exception as e:
             print(f'{type(e).__name__}: CHECK_FOLDER_SIZE CAN NOT WORK')
-        time.sleep(1)
-        try:
-            Thread(target=self.server_run, daemon=True).start()
-        except Exception as e:
-            print(f'{type(e).__name__}: CAN NOT RUN CAMERA SERVER')
 
     def run_cam(self):
         while True:
@@ -99,53 +93,23 @@ class Video():
             self.buffer = (self.frame, self.metadata, self.timestamp)
             self.count += 1
 
-    def server_run(self):
-        # config
-        host_ip = '192.168.144.100'
-        port = 10100
-        RESIZE_FACTOR = 8
-        TIME_SLEEP = 0.001
-        socket_address = (host_ip, port)
-        # Socket Create
-        server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-        # Socket Bind
-        server_socket.bind(socket_address)
-        # Socket Listen
-        server_socket.listen(5)
-        print("LISTENING AT:",socket_address)
-        while True:
-            client_socket,addr = server_socket.accept()
-            print('GOT CONNECTION FROM:',addr)
-            if client_socket:
-                try:
-                    while True:
-                        frame = self.frame
-                        frame = cv2.resize(frame, (frame.shape[1]//RESIZE_FACTOR,frame.shape[0]//RESIZE_FACTOR), interpolation = cv2.INTER_AREA)
-                        a = pickle.dumps(frame)
-                        time.sleep(TIME_SLEEP)
-                        message = struct.pack("Q",len(a))+a
-                        client_socket.sendall(message)
-                except Exception as e:
-                    print(f"Connection error: {e}")
-            client_socket.close()
-
-    def run_IMU(self):
-        bmi = DFRobot_BMI160_IIC(addr = BMI160_IIC_ADDR_SDO_H)
-        while bmi.begin() != BMI160_OK:
-            print("Initialization 6-axis sensor failed.")
-            time.sleep(1)
-        print("Initialization 6-axis sensor sucess.")
-        while True:
-            data = bmi.get_sensor_data()
-            print('IMU_DATA============>', data)
-            self.IMU_data = {
-                'acc_x_IMU': data['accel']['x']/16384.0,
-                'acc_y_IMU': data['accel']['y']/16384.0,
-                'acc_z_IMU': data['accel']['z']/16384.0,
-                'gyro_x_IMU': data['gyro']['x']*3.14/180.0,
-                'gyro_y_IMU': data['gyro']['y']*3.14/180.0,
-                'gyro_z_IMU': data['gyro']['z']*3.14/180.0,
-                        }
+    # def run_IMU(self):
+    #     bmi = DFRobot_BMI160_IIC(addr = BMI160_IIC_ADDR_SDO_H)
+    #     while bmi.begin() != BMI160_OK:
+    #         print("Initialization 6-axis sensor failed.")
+    #         time.sleep(1)
+    #     print("Initialization 6-axis sensor sucess.")
+    #     while True:
+    #         data = bmi.get_sensor_data()
+    #         print('IMU_DATA============>', data)
+    #         self.IMU_data = {
+    #             'acc_x_IMU': data['accel']['x']/16384.0,
+    #             'acc_y_IMU': data['accel']['y']/16384.0,
+    #             'acc_z_IMU': data['accel']['z']/16384.0,
+    #             'gyro_x_IMU': data['gyro']['x']*3.14/180.0,
+    #             'gyro_y_IMU': data['gyro']['y']*3.14/180.0,
+    #             'gyro_z_IMU': data['gyro']['z']*3.14/180.0,
+    #                     }
 
     def run_GPS(self):
         # Подключение к устройству
@@ -168,21 +132,20 @@ class Video():
 
     def delete_subfolders(self):
         def get_size():
-            size = subprocess.check_output(['du','-sh', "/home/orangepi/videos"]).split()[0].decode('utf-8')
-            # print('==========', size, type(size))
+            size = subprocess.check_output(['du','-sh', save_dir]).split()[0].decode('utf-8')
             if 'G' in size:
-                size = round(float(size.replace('G', '')) * 1024**3)
+                size = int(size.replace('G', '')) * 1024**3
             elif 'M' in size:
-                size = round(float(size.replace('M', '')) * 1024**2)
+                size = int(size.replace('M', '')) * 1024**2
             elif 'K' in size:
-                size = round(float(size.replace('K', '')) * 1024)
+                size = int(size.replace('K', '')) * 1024
             print(size/1024**3, 'GB')
             return size
-        while get_size() > MAX_SIZE_GB * 1024**3:
-            subfolders = [f for f in os.listdir("/home/orangepi/videos") if os.path.isdir(os.path.join("/home/orangepi/videos", f))]
+        while get_size() > 20 * 1024**3:
+            subfolders = [f for f in os.listdir(save_dir) if os.path.isdir(os.path.join(save_dir, f))]
             sorted_subfolders = sorted(subfolders, key=int)
             # print(sorted_subfolders)
-            subfolder_path = os.path.join("/home/orangepi/videos", sorted_subfolders[0])
+            subfolder_path = os.path.join(save_dir, sorted_subfolders[0])
             print(subfolder_path)
             os.chmod(subfolder_path, 0o1777)
             shutil.rmtree(subfolder_path)
@@ -199,11 +162,12 @@ class Video():
         with BytesIO() as output:
             im.save(output, "PNG", pnginfo=png_info)
             binary_data = output.getvalue()
-        with open(f'/home/orangepi/videos/{folder_count}/frames/{buffer[2]}.png', "wb") as file:
+        with open(f'{save_dir}/{folder_count}/frames/{buffer[2]}.png', "wb") as file:
             file.write(binary_data)
         # print(self.cap.get(cv2.CAP_PROP_FPS))
         # print('SAVE_IMG ==========>', folder_count, cur_count)
-        os.sync()
+        # os.sync()
+        print(f'SYNC SUCCES{buffer[2]}')
 
 def video_write(save_dir):
     video = Video(save_dir)
@@ -219,7 +183,7 @@ def video_write(save_dir):
                 folders.remove(i)
         max_folder = max(folders, key=lambda x: int(x))
         folder_count = int(max_folder) + 1
-    fpath = f'/home/orangepi/videos/{folder_count}/frames/'
+    fpath = f'{save_dir}/{folder_count}/frames/'
     os.makedirs(fpath)
     # print('FOLDER=============>', fpath)
     cur_count = 0
@@ -227,7 +191,8 @@ def video_write(save_dir):
         if cur_count < video.count:
             buffer = video.buffer[:]
             # start_time = time.time()
-            if cur_count % 4 == 0:
+            if cur_count % 1 == 0:
+                print(cur_count)
                 x = copy.copy(buffer)
                 thread = Thread(target=video.save_img, args=(x, folder_count, copy.copy(cur_count)))
                 thread.start()
